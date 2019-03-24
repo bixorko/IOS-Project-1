@@ -20,22 +20,33 @@ do
     if [ "$1" = "-a" ]
         then
         shift
-        DATETIME=$(date +'%F %T' -d "$1")
-        echo "$DATETIME"
+        DATETIME=$(date +'%F%T' -d "$1" | sed "s/://g" | sed "s/-//g")
+        if [ $? -eq 1 ]
+            then
+            echo "ERROR"
+        fi
         adate=1
         ARGS_REMAINS=$(($ARGS_REMAINS-1))
         shift
     fi
     
-    if [ "$1" = "-b DATETIME" ]
+    if [ "$1" = "-b" ]
         then
+        shift
+        DATETIME2=$(date +'%F%T' -d "$1" | sed "s/://g" | sed "s/-//g")
+        if [ $? -eq 1 ]
+            then
+            echo "ERROR"
+        fi
         bdate=1
         ARGS_REMAINS=$(($ARGS_REMAINS-1))
         shift
     fi
     
-    if [ "$1" = "-ip IPADDR" ]
+    if [ "$1" = "-ip" ]
         then
+        shift
+        IPADDR=$1
         ip=1
         ARGS_REMAINS=$(($ARGS_REMAINS-1))
         shift
@@ -95,87 +106,150 @@ for x in `seq $ARGS_REMAINS $ARGS`
 do
   if [ "$1" = *.log ]
     then
-    
+        ToEdit=$(cat $1)
+        
+        ##############################################################################
+        ##############################FILTER PART#####################################
+        ##############################################################################
+        
+        if [ $adate -eq 1 ]                         #tu bude ak zistime ze bolo zadane adate
+            then
+            datumslovo=$(echo "$ToEdit" | awk '{ print $4 }' | cut -d "[" -f2-)
+            datumcislo=$(echo "$datumslovo" | sed 's/Jan/01/' | sed 's/Feb/02/' | sed 's/Mar/03/' | sed 's/Apr/04/'| sed 's/May/05/' | sed 's/Jun/06/'| sed 's/Jul/07/' | sed 's/Aug/08/'| sed 's/Sep/09/' | sed 's/Oct/10/' | sed 's/Nov/11/' | sed 's/Dec/12/')
+            final=$(echo "$datumcislo" | sed "s/:/ /" | sed "s/\// /g" | awk '{print $3 $2 $1 $4}' | sed "s/://g")
+            plz=$(for yolo in $final; do
+                        if [ $yolo -gt $DATETIME ]; then
+                            echo "$yolo"
+                        fi
+                        done)
+            fplz=$(echo "$plz" | sed 's/./ &/5' | sed 's/./ &/8' | sed 's/./ &/11' | sed 's/./:&/14' | sed 's/./:&/17' | awk '{print $3 $2 $1 $4}')
+            lower=$(echo "$fplz" | sed 's/02/Feb/' | sed 's/./\/&/3' | sed 's/./\/&/7' | sed 's/./:&/12' | sort | uniq)
+            loaded=$(cat "$1")
+            loadedstlpec=$(echo "$loaded" | awk '{ print $4 }' | cut -d "[" -f2-)
+            ToEdit=$(for pom1 in $lower; do
+                i=1
+                for pom2 in $loadedstlpec; do
+                    if [ "$pom1" = "$pom2" ]; then
+                        echo "$loaded" | sed -n "$i"p
+                    fi
+                    i=$(($i+1))
+                done
+            done)
+        fi
+        
+        ##############################################################################
+        if [ $bdate -eq 1 ]                         #tu bude ak zistime ze bolo zadane bdate
+            then
+            datumslovo=$(echo "$ToEdit" | awk '{ print $4 }' | cut -d "[" -f2-)
+            datumcislo=$(echo "$datumslovo" | sed 's/Jan/01/' | sed 's/Feb/02/' | sed 's/Mar/03/' | sed 's/Apr/04/'| sed 's/May/05/' | sed 's/Jun/06/'| sed 's/Jul/07/' | sed 's/Aug/08/'| sed 's/Sep/09/' | sed 's/Oct/10/' | sed 's/Nov/11/' | sed 's/Dec/12/')
+            final=$(echo "$datumcislo" | sed "s/:/ /" | sed "s/\// /g" | awk '{print $3 $2 $1 $4}' | sed "s/://g")
+            plz=$(for yolo in $final; do
+                        if [ $yolo -lt $DATETIME2 ]; then
+                            echo "$yolo"
+                        fi
+                        done)
+            fplz=$(echo "$plz" | sed 's/./ &/5' | sed 's/./ &/8' | sed 's/./ &/11' | sed 's/./:&/14' | sed 's/./:&/17' | awk '{print $3 $2 $1 $4}')
+            lower=$(echo "$fplz" | sed 's/02/Feb/' | sed 's/./\/&/3' | sed 's/./\/&/7' | sed 's/./:&/12' | sort | uniq)
+            loaded=$(cat "$1")
+            loadedstlpec=$(echo "$loaded" | awk '{ print $4 }' | cut -d "[" -f2-)
+            ToEdit=$(for pom1 in $lower; do
+                i=1
+                for pom2 in $loadedstlpec; do
+                    if [ "$pom1" = "$pom2" ]; then
+                        echo "$loaded" | sed -n "$i"p
+                    fi
+                    i=$((i+1))
+                done
+            done)
+        fi
+        
+        ##############################################################################
+        if [ $ip -eq 1 ]
+            then
+            FullFile=$(echo "$ToEdit")
+            IpFromFile=$(echo "$ToEdit" | awk '{ print $1 }')
+            i=1
+            ToEdit=$(for pom1 in $IpFromFile; do
+                if [ "$pom1" = "$IPADDR" ]; then
+                    echo "$FullFile" | sed -n "$i"p
+                fi
+                i=$(($i+1))
+            done)
+        fi
+        
+    ##############################################################################
+    ##################################COMMAND PART################################
     ##############################################################################
     if [ $command = "list-ip" ]                     #ak je command list-ip
         then
-        if [ $adate -eq 1 ]                         #tu bude ak zistime ze bolo zadane adata
-            then
-            datumcelk=$(awk '{ print $4 }' $1 | cut -d "[" -f2-)
-            datum=$(echo "$datumcelk" | awk -F: '{print $1}')
-            cas=$(echo "$datumcelk" | cut --complement -d ":" -f1)
-            mesiac=$(echo "$datum" | cut -d '/' -f 2)
-            finalmonth=$(echo "$datum" | sed 's/Jan/01/' | sed 's/Feb/02/' | sed 's/Mar/03/' | sed 's/Apr/04/'| sed 's/May/05/' | sed 's/Jun/06/'| sed 's/Jul/07/' | sed 's/Aug/08/'| sed 's/Sep/09/' | sed 's/Oct/10/' | sed 's/Nov/11/' | sed 's/Dec/12/')
-            echo "$finalmonth"
-        fi
-        
+            
+        ##############################################################################
         #Ak je zadany len command BEZ FILTRU
         if [ $adate != 1 -a $bdate != 1 -a $ip != 1 -a $uri != 1 ]
             then
-            b=$(awk '{ print $1 }' $1)                  #vypise prvy stlpec
-            echo "$b" | sort | uniq                     #sortne a zunikatni POZOR TREBA NAJPRV              
-                                                                                        #sort
+            ToEdit=$(echo "$ToEdit" | awk '{ print $1 }' | sort | uniq)
         fi
+        
+        echo "$ToEdit" | awk '{ print $1 }' | sort | uniq
     fi
     
     ##############################################################################
+    ##############################################################################
+    ##############################################################################
     if [ $command = "list-hosts" ]                  #ak je command list-hosts
         then
+        c=$(echo "$ToEdit" | awk '{print $1}' | sort | uniq)      #ulozi prvy stlpec sortnuty a unikatny
+        ToEdit=$(for next in $c; do                          #prechadzame vsetky ipcky ktore budeme
+                                                                            #menit
+            c=$(host $next)                         #prebehne operacia
+            if [ $? -eq 0 ]; then                   #ak bola uspesna 
+                echo "$c" | awk '{ print $5 }'      #printneme domenu
+                else                                #ak bola neuspesna
+                echo "$next"                        #printneme nezmenenu ip adresu
+            fi
+        done)
         
-        #Ak je zadany len command BEZ FILTRU
-        if [ $adate != 1 -a $bdate != 1 -a $ip != 1 -a $uri != 1 ]
-            then
-            c=$(awk '{print $1}' $1 | sort | uniq)      #ulozi prvy stlpec sortnuty a unikatny
-            for next in $c; do                          #prechadzame vsetky ipcky ktore budeme
-                                                                                #menit
-                c=$(host $next)                         #prebehne operacia
-                if [ $? -eq 0 ]; then                   #ak bola uspesna 
-                    echo "$c" | awk '{ print $5 }'      #printneme domenu
-                    else                                #ak bola neuspesna
-                    echo "$next"                        #printneme nezmenenu ip adresu
-                fi
-            done
-        fi
+        echo "$ToEdit" | sort | uniq
     fi
     
+    ##############################################################################
+    ##############################################################################
     ###############################################################################
     if [ $command = "list-uri" ]                    #ak je command list-uri
         then
         
-        #Ak je zadany len command BEZ FILTRU
-        if [ $adate != 1 -a $bdate != 1 -a $ip != 1 -a $uri != 1 ]
-            then
-            b=$(awk '/[^\/]+[alnum]/{ print $7 }' $1)   #vypise uri v spravnom tvare vratane /
-            echo "$b"                                   #hore to ulozi do premennej tu vypise
-        fi
+        ToEdit=$(echo "$ToEdit" | awk '/[^\/]+[alnum]/{ print $7 }')   #vypise uri v spravnom tvare vratane /
+        echo "$ToEdit" | sort | uniq                                   #hore to ulozi do premennej tu vypise
     fi
     
+    ##############################################################################
+    ##############################################################################
     ################################################################################
     if [ $command = "hist-ip" ]                     #ak je command hist-ip
         then
         
-        #Ak je zadany len command BEZ FILTRU
-        if [ $adate != 1 -a $bdate != 1 -a $ip != 1 -a $uri != 1 ]
-            then
-            b=$(awk '{ print $1 }' $1 | sort | uniq -c | sort -r)
-            counter=$(echo "$b" | awk '{ print $1 }') #vyberiem zo sortnuteho histogramu kolko                                       
-                                                            #krat som ich mergol dokopy
-            ips=$(echo "$b" | awk '{ print $2 }')    #vyberiem zo sortnuteho histogramu ipcky
-            ipcount=1
-            for next in $counter; do                 #cyklus na vykreslenie "#"
-                i=1                                   
-                c=$(echo "$ips" | sed -n "$ipcount"p) #vypise dany riadok v poradi
-                echo -n "$c ($next): "                #print ako v zadanom formate
-                while [ $i -le $next ]; do
-                    echo -n "#"
-                    i=$(($i+1))                       #inkrementacia pre vypis #
-                done                    
-                echo ""                               #aby dalsia iteracia prebehla na newline
-                ipcount=$(($ipcount+1))                 #posunieme sa na dalsiu ip
-            done
-        fi
+        b=$(echo "$ToEdit" | awk '{ print $1 }' | sort | uniq -c | sort -r)
+        counter=$(echo "$b" | awk '{ print $1 }') #vyberiem zo sortnuteho histogramu kolko                                       
+                                                        #krat som ich mergol dokopy
+        ips=$(echo "$b" | awk '{ print $2 }')    #vyberiem zo sortnuteho histogramu ipcky
+        ipcount=1
+        ToEdit=$(for next in $counter; do                 #cyklus na vykreslenie "#"
+            i=1                                   
+            c=$(echo "$ips" | sed -n "$ipcount"p) #vypise dany riadok v poradi
+            echo -n "$c ($next): "                #print ako v zadanom formate
+            while [ $i -le $next ]; do
+                echo -n "#"
+                i=$(($i+1))                       #inkrementacia pre vypis #
+            done                    
+            echo ""                               #aby dalsia iteracia prebehla na newline
+            ipcount=$(($ipcount+1))                 #posunieme sa na dalsiu ip
+        done)
+        
+        echo "$ToEdit" | sort | uniq
     fi
     
+    ##############################################################################
+    ##############################################################################
     ###################################################################################
     shift                                           #posunieme sa na dalsi subor prip. end
                 #tu sa potom bude brat zo stdin ak nebude ziadny log alebo error ak zly vstup
