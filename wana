@@ -1,10 +1,6 @@
 #!/bin/sh
 
-POSIXLY_CORRECT=yes
-
-#date -d "1999-12-03 15:45:23" +%s prepocita datum na sekundy
-        #DATETIME=$(date -d "1999-12-03 15:45:23" +%s
-        #echo $DATETIME           
+POSIXLY_CORRECT=yes        
            
 ARGS=$#
 ARGS_REMAINS=$#
@@ -102,12 +98,17 @@ do
   done
 
 ARGS_REMAINS=$(($ARGS-$ARGS_REMAINS+1))    #NEVIEM PRECO +1 ALE FUNGUJE TO
-for x in `seq $ARGS_REMAINS $ARGS`
+while [ $# != 0 ]
 do
-  if [ "$1" = *.log ]
+    if [ "$1" = *.log ]
     then
-        ToEdit=$(cat $1)
-        
+        pom=$(cat "$1")
+        ToEdit="${ToEdit}${pom}\n"
+    fi
+    shift
+done
+ToEdit=$(echo "$ToEdit" | awk /./) #odstranenie poslednej \n
+
         ##############################################################################
         ##############################FILTER PART#####################################
         ##############################################################################
@@ -124,7 +125,7 @@ do
                         done)
             fplz=$(echo "$plz" | sed 's/./ &/5' | sed 's/./ &/8' | sed 's/./ &/11' | sed 's/./:&/14' | sed 's/./:&/17' | awk '{print $3 $2 $1 $4}')
             lower=$(echo "$fplz" | sed 's/02/Feb/' | sed 's/./\/&/3' | sed 's/./\/&/7' | sed 's/./:&/12' | sort | uniq)
-            loaded=$(cat "$1")
+            loaded=$(echo "$ToEdit")
             loadedstlpec=$(echo "$loaded" | awk '{ print $4 }' | cut -d "[" -f2-)
             ToEdit=$(for pom1 in $lower; do
                 i=1
@@ -150,7 +151,7 @@ do
                         done)
             fplz=$(echo "$plz" | sed 's/./ &/5' | sed 's/./ &/8' | sed 's/./ &/11' | sed 's/./:&/14' | sed 's/./:&/17' | awk '{print $3 $2 $1 $4}')
             lower=$(echo "$fplz" | sed 's/02/Feb/' | sed 's/./\/&/3' | sed 's/./\/&/7' | sed 's/./:&/12' | sort | uniq)
-            loaded=$(cat "$1")
+            loaded=$(echo "$ToEdit")
             loadedstlpec=$(echo "$loaded" | awk '{ print $4 }' | cut -d "[" -f2-)
             ToEdit=$(for pom1 in $lower; do
                 i=1
@@ -228,7 +229,7 @@ do
     if [ $command = "hist-ip" ]                     #ak je command hist-ip
         then
         
-        b=$(echo "$ToEdit" | awk '{ print $1 }' | sort | uniq -c | sort -r)
+        b=$(echo "$ToEdit" | awk '{ print $1 }' | sort | uniq -c | sort -g -r)
         counter=$(echo "$b" | awk '{ print $1 }') #vyberiem zo sortnuteho histogramu kolko                                       
                                                         #krat som ich mergol dokopy
         ips=$(echo "$b" | awk '{ print $2 }')    #vyberiem zo sortnuteho histogramu ipcky
@@ -236,22 +237,18 @@ do
         ToEdit=$(for next in $counter; do                 #cyklus na vykreslenie "#"
             i=1                                   
             c=$(echo "$ips" | sed -n "$ipcount"p) #vypise dany riadok v poradi
-            echo -n "$c ($next): "                #print ako v zadanom formate
+            printf "$c ($next): "                #print ako v zadanom formate
             while [ $i -le $next ]; do
-                echo -n "#"
+                printf "#"
                 i=$(($i+1))                       #inkrementacia pre vypis #
             done                    
             echo ""                               #aby dalsia iteracia prebehla na newline
             ipcount=$(($ipcount+1))                 #posunieme sa na dalsiu ip
         done)
         
-        echo "$ToEdit" | sort | uniq
+        echo "$ToEdit"
     fi
     
     ##############################################################################
     ##############################################################################
     ###################################################################################
-    shift                                           #posunieme sa na dalsi subor prip. end
-                #tu sa potom bude brat zo stdin ak nebude ziadny log alebo error ak zly vstup
-  fi
-done  
